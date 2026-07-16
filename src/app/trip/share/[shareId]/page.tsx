@@ -96,7 +96,7 @@ export default function SharedTripPage() {
               origin: trip.origin,
               startDate: trip.startDate,
               endDate: trip.endDate,
-              budget: trip.budget,
+              budget: trip.budget ?? "moderate",
               itinerary,
             })
           }
