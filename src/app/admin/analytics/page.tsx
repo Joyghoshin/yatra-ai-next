@@ -51,19 +51,23 @@ function StatCard({ label, value, sublabel }: { label: string; value: string; su
 }
 
 export default function AnalyticsDashboard() {
- const { user, isLoading } = useAuth();
-const token = useAuthStore((s) => s.token);
+  const { user, isLoading: authLoading } = useAuth();
+  const token = useAuthStore((s) => s.token);
+  
   const isAdmin = user?.email === ADMIN_EMAIL;
 
+  // Correct Convex conditional fetching implementation
   const records = useQuery(
     api.llmUsage.getUsageStats,
     token && isAdmin ? { token } : "skip"
   ) as UsageRecord[] | undefined;
 
-  if (isLoading) {
-    return <div className="p-8 text-center text-gray-500">Loading...</div>;
+  // 1. Wait for both user object AND backend tokens to settle completely
+  if (authLoading || (user && !token)) {
+    return <div className="p-8 text-center text-gray-500">Authenticating admin session...</div>;
   }
 
+  // 2. Gatekeeper validation occurs safely after states load
   if (!user || !isAdmin) {
     return (
       <div className="p-8 text-center text-red-500">
@@ -72,6 +76,7 @@ const token = useAuthStore((s) => s.token);
     );
   }
 
+  // 3. Data-fetching state check
   if (records === undefined) {
     return <div className="p-8 text-center text-gray-500">Loading usage data...</div>;
   }
@@ -95,7 +100,7 @@ const token = useAuthStore((s) => s.token);
       ? Math.round(successfulRecords.reduce((sum, r) => sum + r.latencyMs, 0) / successfulRecords.length)
       : 0;
 
-  // Chronological order for the time-series chart (records come back newest-first).
+  // Chronological order for the time-series chart
   const chronological = [...records].sort((a, b) => a.createdAt - b.createdAt);
   let cumulative = 0;
   const timeSeriesData = chronological.map((r, i) => {
@@ -146,45 +151,51 @@ const token = useAuthStore((s) => s.token);
       {/* Tokens over time */}
       <div className="border rounded-lg p-4 bg-white mb-6">
         <h2 className="text-sm font-semibold mb-3">Cumulative tokens consumed</h2>
-        <ResponsiveContainer width="100%" height={260}>
-          <LineChart data={timeSeriesData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="call" tick={{ fontSize: 11 }} label={{ value: "Call #", position: "insideBottom", offset: -2, fontSize: 11 }} />
-            <YAxis tick={{ fontSize: 11 }} />
-            <Tooltip />
-            <Line type="monotone" dataKey="cumulativeTokens" stroke="#0F3D3E" strokeWidth={2} dot={false} name="Cumulative tokens" />
-          </LineChart>
-        </ResponsiveContainer>
+        <div className="w-full h-[260px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={timeSeriesData} margin={{ left: 10, right: 10, bottom: 15 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+              <XAxis dataKey="call" tick={{ fontSize: 11 }} label={{ value: "Call #", position: "insideBottom", offset: -5, fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Line type="monotone" dataKey="cumulativeTokens" stroke="#0F3D3E" strokeWidth={2} dot={false} name="Cumulative tokens" />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
       <div className="grid sm:grid-cols-2 gap-6 mb-8">
         {/* Feature breakdown */}
         <div className="border rounded-lg p-4 bg-white">
           <h2 className="text-sm font-semibold mb-3">Tokens by feature</h2>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={featureBreakdown}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-              <XAxis dataKey="feature" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="tokens" fill="#F4A261" name="Total tokens" />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="w-full h-[220px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={featureBreakdown}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+                <XAxis dataKey="feature" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Bar dataKey="tokens" fill="#F4A261" name="Total tokens" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
         {/* Tokens per call */}
         <div className="border rounded-lg p-4 bg-white">
           <h2 className="text-sm font-semibold mb-3">Tokens per call</h2>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={timeSeriesData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-              <XAxis dataKey="call" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip />
-              <Bar dataKey="tokens" fill="#0F3D3E" name="Tokens" />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="w-full h-[220px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={timeSeriesData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+                <XAxis dataKey="call" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Bar dataKey="tokens" fill="#0F3D3E" name="Tokens" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
 
