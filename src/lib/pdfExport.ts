@@ -26,7 +26,7 @@ export function generateTripPdf({ destination, origin, startDate, endDate, budge
     }
   }
 
-  function addWrappedText(text: string, x: number, fontSize: number, style: "normal" | "bold" = "normal", lineHeight = 5) {
+  function addWrappedText(text: string, x: number, fontSize: number, style: "normal" | "bold" | "italic" = "normal", lineHeight = 5) {
     doc.setFontSize(fontSize);
     doc.setFont("helvetica", style);
     const lines = doc.splitTextToSize(text, CONTENT_WIDTH - (x - MARGIN));
