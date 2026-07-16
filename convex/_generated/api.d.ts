@@ -10,6 +10,7 @@
 
 import type * as ai from "../ai.js";
 import type * as auth from "../auth.js";
+import type * as llmUsage from "../llmUsage.js";
 import type * as trips from "../trips.js";
 
 import type {
@@ -21,6 +22,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   ai: typeof ai;
   auth: typeof auth;
+  llmUsage: typeof llmUsage;
   trips: typeof trips;
 }>;
 

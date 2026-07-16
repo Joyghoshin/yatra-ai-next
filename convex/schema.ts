@@ -33,4 +33,21 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_shareId", ["shareId"]),
+
+  llmUsage: defineTable({
+    userId: v.optional(v.id("users")),
+    tripId: v.optional(v.id("trips")),
+    feature: v.union(v.literal("generateItinerary"), v.literal("chatWithTrip")),
+    model: v.string(),
+    promptTokens: v.number(),
+    completionTokens: v.number(),
+    totalTokens: v.number(),
+    latencyMs: v.number(),
+    success: v.boolean(),
+    errorMessage: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_feature", ["feature"])
+    .index("by_createdAt", ["createdAt"]),
 });
