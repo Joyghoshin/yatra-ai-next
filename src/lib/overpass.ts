@@ -23,12 +23,6 @@ export const PLACE_CATEGORIES: PlaceCategory[] = [
   { key: "ev", label: "EV Charging", icon: "⚡", tag: 'amenity"="charging_station', radius: 3000 },
 ];
 
-const OVERPASS_ENDPOINTS = [
-  "https://overpass-api.de/api/interpreter",
-  "https://overpass.kumi.systems/api/interpreter",
-  "https://overpass.openstreetmap.fr/api/interpreter",
-];
-
 function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;
   const toRad = (deg: number) => (deg * Math.PI) / 180;
@@ -45,47 +39,31 @@ export async function fetchNearbyPlaces(
   lng: number,
   category: PlaceCategory
 ): Promise<OverpassPlace[]> {
-  const query = `[out:json][timeout:25];node["${category.tag}"](around:${category.radius},${lat},${lng});out body;`;
+  const res = await fetch("/api/nearby-places", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ lat, lng, tag: category.tag, radius: category.radius }),
+  });
 
-  let lastError: Error | null = null;
-  let wasRateLimited = false;
+  const data = await res.json();
 
-  for (const endpoint of OVERPASS_ENDPOINTS) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-      const res = await fetch(endpoint, { method: "POST", body: query, signal: controller.signal });
-      clearTimeout(timeoutId);
-
-      if (res.status === 429) {
-        wasRateLimited = true;
-        continue;
-      }
-      if (!res.ok) throw new Error(`Overpass request failed (${res.status})`);
-
-      const data = await res.json();
-      const elements: { id: number; lat: number; lon: number; tags?: { name?: string; operator?: string; brand?: string } }[] = data.elements ?? [];
-
-      return elements
-        .map((el) => ({
-          id: el.id,
-          name: el.tags?.name || el.tags?.operator || el.tags?.brand || category.label.replace(/s$/, ""),
-          lat: el.lat,
-          lng: el.lon,
-          distanceMeters: haversineMeters(lat, lng, el.lat, el.lon),
-        }))
-        .sort((a, b) => a.distanceMeters - b.distanceMeters)
-        .slice(0, 15);
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error("Unknown Overpass error");
-    }
+  if (!res.ok) {
+    throw new Error(data.error || `Request failed (${res.status})`);
   }
 
-  if (wasRateLimited) {
-    throw new Error("Too many requests right now — please wait about 30 seconds and try again.");
-  }
-  throw lastError ?? new Error("All Overpass endpoints failed");
+  const elements: { id: number; lat: number; lon: number; tags?: { name?: string; operator?: string; brand?: string } }[] =
+    data.elements ?? [];
+
+  return elements
+    .map((el) => ({
+      id: el.id,
+      name: el.tags?.name || el.tags?.operator || el.tags?.brand || category.label.replace(/s$/, ""),
+      lat: el.lat,
+      lng: el.lon,
+      distanceMeters: haversineMeters(lat, lng, el.lat, el.lon),
+    }))
+    .sort((a, b) => a.distanceMeters - b.distanceMeters)
+    .slice(0, 15);
 }
 
 export function formatDistance(meters: number): string {
