@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { PLACE_CATEGORIES, fetchNearbyPlaces, formatDistance, OverpassPlace } from "@/lib/overpass";
 
 interface NearbyPlacesProps {
@@ -10,6 +10,10 @@ interface NearbyPlacesProps {
   onSelectPlace?: (id: number) => void;
 }
 
+// Module-level cache shared across renders/category switches within the same page load.
+// Key: "lat_lng_categoryKey" -> results
+const placesCache = new Map<string, OverpassPlace[]>();
+
 export default function NearbyPlaces({ lat, lng, onPlacesChange, selectedPlaceId, onSelectPlace }: NearbyPlacesProps) {
   const [activeCategory, setActiveCategory] = useState(PLACE_CATEGORIES[0].key);
   const [places, setPlaces] = useState<OverpassPlace[]>([]);
@@ -17,19 +21,43 @@ export default function NearbyPlaces({ lat, lng, onPlacesChange, selectedPlaceId
   const [error, setError] = useState("");
   const [retryKey, setRetryKey] = useState(0);
 
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     const category = PLACE_CATEGORIES.find((c) => c.key === activeCategory)!;
+    const cacheKey = `${lat}_${lng}_${category.key}`;
+
+    // Serve from cache instantly if we've already fetched this combo (unless it's an explicit retry).
+    const cached = placesCache.get(cacheKey);
+    if (cached && retryKey === 0) {
+      setPlaces(cached);
+      setError("");
+      setLoading(false);
+      onPlacesChange?.(cached);
+      return;
+    }
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
     setLoading(true);
     setError("");
     setPlaces([]);
     onPlacesChange?.([]);
-    fetchNearbyPlaces(lat, lng, category)
-      .then((result) => {
-        setPlaces(result);
-        onPlacesChange?.(result);
-      })
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load nearby places"))
-      .finally(() => setLoading(false));
+
+    debounceRef.current = setTimeout(() => {
+      fetchNearbyPlaces(lat, lng, category)
+        .then((result) => {
+          placesCache.set(cacheKey, result);
+          setPlaces(result);
+          onPlacesChange?.(result);
+        })
+        .catch((err) => setError(err instanceof Error ? err.message : "Failed to load nearby places"))
+        .finally(() => setLoading(false));
+    }, 350);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCategory, lat, lng, retryKey]);
 
