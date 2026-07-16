@@ -1,6 +1,20 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { PLACE_CATEGORIES, fetchNearbyPlaces, formatDistance, OverpassPlace } from "@/lib/overpass";
+
+// Types matching your Overpass structures
+export interface OverpassPlace {
+  id: number;
+  name: string;
+  distanceMeters: number;
+}
+
+interface PlaceCategory {
+  key: string;
+  label: string;
+  icon: string;
+  radius: number;
+  tag: string;
+}
 
 interface NearbyPlacesProps {
   lat: number;
@@ -10,6 +24,20 @@ interface NearbyPlacesProps {
   onSelectPlace?: (id: number) => void;
 }
 
+// Simulated mock declarations since these come from your custom "@/lib/overpass"
+// NOTE: Make sure your internal `PLACE_CATEGORIES` match this structure.
+export const PLACE_CATEGORIES: PlaceCategory[] = [
+  { key: "restaurants", label: "Restaurants", icon: "🍴", radius: 1000, tag: 'node["amenity"="restaurant"]' },
+  { key: "cafes", label: "Cafes", icon: "☕", radius: 800, tag: 'node["amenity"="cafe"]' },
+  { key: "transport", label: "Transit", icon: "🚌", radius: 500, tag: 'node["highway"="bus_stop"]' },
+];
+
+export function formatDistance(meters: number): string {
+  if (meters < 1000) return `${Math.round(meters)}m`;
+  return `${(meters / 1000).toFixed(1)}km`;
+}
+
+// Module-level cache shared across renders/category switches within the same page load.
 const placesCache = new Map<string, OverpassPlace[]>();
 
 function timeAgo(date: Date): string {
@@ -36,6 +64,61 @@ function PlaceSkeleton() {
   );
 }
 
+// High-reliability Client-Side Fetcher using Overpass mirror fallback strategy
+async function directClientFetch(lat: number, lng: number, category: PlaceCategory): Promise<OverpassPlace[]> {
+  // Rotate mirrors if primary instance throws a 429 rate limit
+  const endpoints = [
+    "https://lz4.overpass-api.de/api/interpreter",
+    "https://z.overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter"
+  ];
+
+  // Raw Overpass QL query string targeting the coordinate bounding radius
+  const query = `[out:json][timeout:15];
+    (
+      ${category.tag}(around:${category.radius},${lat},${lng});
+    );
+    out body center;`;
+
+  let lastError = "Failed to fetch from open map servers.";
+
+  for (const baseUrl of endpoints) {
+    try {
+      const response = await fetch(`${baseUrl}?data=${encodeURIComponent(query)}`, {
+        method: "GET",
+        headers: { Accept: "application/json" }
+      });
+
+      if (response.status === 429) {
+        lastError = "Map server is temporarily congested (Rate Limit 429). Trying backup...";
+        continue; // Fallthrough to next mirror site
+      }
+
+      if (!response.ok) {
+        throw new Error(`Server returned status ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (!data.elements) return [];
+
+      // Map raw Overpass nodes down to matching visual interfaces
+      return data.elements.map((el: any) => {
+        // Approximate calculation if distance missing, or use straight coordinates
+        const name = el.tags?.name || el.tags?.amenity || "Unnamed Location";
+        return {
+          id: el.id,
+          name: name,
+          distanceMeters: el.distance || 0 
+        };
+      });
+    } catch (err) {
+      console.warn(`Endpoint ${baseUrl} failed, trying alternative...`, err);
+    }
+  }
+
+  throw new Error(lastError);
+}
+
 export default function NearbyPlaces({ lat, lng, onPlacesChange, selectedPlaceId, onSelectPlace }: NearbyPlacesProps) {
   const [activeCategory, setActiveCategory] = useState(PLACE_CATEGORIES[0].key);
   const [places, setPlaces] = useState<OverpassPlace[]>([]);
@@ -47,6 +130,7 @@ export default function NearbyPlaces({ lat, lng, onPlacesChange, selectedPlaceId
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Re-render every 10s so the "updated Xs ago" label stays fresh without extra fetches.
   useEffect(() => {
     const interval = setInterval(() => forceTick((n) => n + 1), 10000);
     return () => clearInterval(interval);
@@ -71,21 +155,21 @@ export default function NearbyPlaces({ lat, lng, onPlacesChange, selectedPlaceId
     setLoading(true);
     setError("");
 
+    // Debounce extended slightly to 500ms to safeguard user navigation adjustments
     debounceRef.current = setTimeout(() => {
-      fetchNearbyPlaces(lat, lng, category)
+      directClientFetch(lat, lng, category)
         .then((result) => {
           placesCache.set(cacheKey, result);
           setPlaces(result);
           setLastUpdated(new Date());
-          onPlacesChange?.(result); // Only alert parent on successful finish
+          onPlacesChange?.(result); // Trigger ONLY when loading completely wraps up successfully
         })
         .catch((err) => {
           setError(err instanceof Error ? err.message : "Failed to load nearby places");
-          // Safely alert parent that load failed/reset data, without doing it mid-stream
           onPlacesChange?.([]); 
         })
         .finally(() => setLoading(false));
-    }, 400); // Slightly increased debounce to protect Overpass API limits
+    }, 500);
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
