@@ -1,0 +1,23 @@
+﻿export const INDIAN_CITIES = [
+    
+  { city: "Mumbai", state: "Maharashtra", lat: 19.0760, lon: 72.8777 },
+  { city: "Delhi", state: "Delhi", lat: 28.6139, lon: 77.2090 },
+  { city: "Bengaluru", state: "Karnataka", lat: 12.9716, lon: 77.5946 },
+  { city: "Jaipur", state: "Rajasthan", lat: 26.9124, lon: 75.7873 },
+  { city: "Goa", state: "Goa", lat: 15.2993, lon: 74.1240 },
+  { city: "Kolkata", state: "West Bengal", lat: 22.5726, lon: 88.3639 },
+  { city: "Chennai", state: "Tamil Nadu", lat: 13.0827, lon: 80.2707 },
+  { city: "Hyderabad", state: "Telangana", lat: 17.3850, lon: 78.4867 },
+  { city: "Varanasi", state: "Uttar Pradesh", lat: 25.3176, lon: 82.9739 },
+  { city: "Udaipur", state: "Rajasthan", lat: 24.5854, lon: 73.7125 },
+  { city: "Agra", state: "Uttar Pradesh", lat: 27.1767, lon: 78.0081 },
+  { city: "Manali", state: "Himachal Pradesh", lat: 32.2432, lon: 77.1892 },
+  { city: "Rishikesh", state: "Uttarakhand", lat: 30.0869, lon: 78.2676 },
+  { city: "Kochi", state: "Kerala", lat: 9.9312, lon: 76.2673 },
+  { city: "Mysuru", state: "Karnataka", lat: 12.2958, lon: 76.6394 },
+  { city: "Amritsar", state: "Punjab", lat: 31.6340, lon: 74.8723 },
+  { city: "Darjeeling", state: "West Bengal", lat: 27.0360, lon: 88.2627 },
+  { city: "Jodhpur", state: "Rajasthan", lat: 26.2389, lon: 73.0243 },
+  { city: "Leh", state: "Ladakh", lat: 34.1526, lon: 77.5770 },
+  { city: "Ooty", state: "Tamil Nadu", lat: 11.4102, lon: 76.6950 },
+];
