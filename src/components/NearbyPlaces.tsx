@@ -10,8 +10,6 @@ interface NearbyPlacesProps {
   onSelectPlace?: (id: number) => void;
 }
 
-// Module-level cache shared across renders/category switches within the same page load.
-// Key: "lat_lng_categoryKey" -> results
 const placesCache = new Map<string, OverpassPlace[]>();
 
 function timeAgo(date: Date): string {
@@ -49,7 +47,6 @@ export default function NearbyPlaces({ lat, lng, onPlacesChange, selectedPlaceId
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Re-render every 10s so the "updated Xs ago" label stays fresh without extra fetches.
   useEffect(() => {
     const interval = setInterval(() => forceTick((n) => n + 1), 10000);
     return () => clearInterval(interval);
@@ -73,7 +70,6 @@ export default function NearbyPlaces({ lat, lng, onPlacesChange, selectedPlaceId
 
     setLoading(true);
     setError("");
-    onPlacesChange?.([]);
 
     debounceRef.current = setTimeout(() => {
       fetchNearbyPlaces(lat, lng, category)
@@ -81,11 +77,15 @@ export default function NearbyPlaces({ lat, lng, onPlacesChange, selectedPlaceId
           placesCache.set(cacheKey, result);
           setPlaces(result);
           setLastUpdated(new Date());
-          onPlacesChange?.(result);
+          onPlacesChange?.(result); // Only alert parent on successful finish
         })
-        .catch((err) => setError(err instanceof Error ? err.message : "Failed to load nearby places"))
+        .catch((err) => {
+          setError(err instanceof Error ? err.message : "Failed to load nearby places");
+          // Safely alert parent that load failed/reset data, without doing it mid-stream
+          onPlacesChange?.([]); 
+        })
         .finally(() => setLoading(false));
-    }, 350);
+    }, 400); // Slightly increased debounce to protect Overpass API limits
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);

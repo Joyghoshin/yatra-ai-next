@@ -39,7 +39,6 @@ export const getUsageStats = query({
       throw new Error("Not authorized to view this dashboard.");
     }
 
-    // Most recent 500 calls — enough for a demo-scale dashboard without unbounded reads.
     const records = await ctx.db.query("llmUsage").order("desc").take(500);
     return records;
   },

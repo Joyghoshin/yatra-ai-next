@@ -3,6 +3,7 @@
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useAuth } from "@/hooks/useAuth";
+import { useAuthStore } from "@/store/authStore";
 import {
   LineChart,
   Line,
@@ -50,7 +51,8 @@ function StatCard({ label, value, sublabel }: { label: string; value: string; su
 }
 
 export default function AnalyticsDashboard() {
-  const { user, token, isLoading } = useAuth();
+ const { user, isLoading } = useAuth();
+const token = useAuthStore((s) => s.token);
   const isAdmin = user?.email === ADMIN_EMAIL;
 
   const records = useQuery(
