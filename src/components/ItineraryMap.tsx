@@ -46,6 +46,20 @@ interface ItineraryMapProps {
   selectedPlaceId?: number | null;
 }
 
+// Groq-generated itineraries occasionally omit or malform hotelLat/hotelLng
+// (or an individual activity's lat/lng) for a given day. Leaflet's
+// MapContainer throws a hard, uncatchable "Invalid LatLng" error the instant
+// it receives undefined/NaN coordinates, taking down the whole page — so we
+// validate everything before it ever reaches react-leaflet.
+function isValidCoord(lat: unknown, lng: unknown): lat is number {
+  return (
+    typeof lat === "number" &&
+    typeof lng === "number" &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lng)
+  );
+}
+
 function FlyToSelected({
   selectedPlaceId,
   places,
@@ -77,47 +91,71 @@ export default function ItineraryMap({
   nearbyPlaces = [],
   selectedPlaceId = null,
 }: ItineraryMapProps) {
+  const markerRefs = useRef<Record<number, L.Marker | null>>({});
+
+  const hasValidHotelCoords = isValidCoord(hotelLat, hotelLng);
+
+  // Filter out any individual activities with bad coordinates rather than
+  // failing the whole map — a partial map is much more useful than none.
+  const validActivities = activities.filter((a) => isValidCoord(a.lat, a.lng));
+  const skippedCount = activities.length - validActivities.length;
+
+  if (!hasValidHotelCoords) {
+    return (
+      <div className="w-full h-[450px] flex items-center justify-center bg-gray-100 text-gray-400 text-sm rounded">
+        Map unavailable for this day — hotel location data is missing.
+      </div>
+    );
+  }
+
   const points: [number, number][] = [
     [hotelLat, hotelLng],
-    ...activities.map((a): [number, number] => [a.lat, a.lng]),
+    ...validActivities.map((a): [number, number] => [a.lat, a.lng]),
     [hotelLat, hotelLng],
   ];
 
-  const markerRefs = useRef<Record<number, L.Marker | null>>({});
-
   return (
-    <MapContainer center={[hotelLat, hotelLng]} zoom={13} style={{ width: "100%", height: "450px" }}>
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
+    <div>
+      <MapContainer center={[hotelLat, hotelLng]} zoom={13} style={{ width: "100%", height: "450px" }}>
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
 
-      <FlyToSelected selectedPlaceId={selectedPlaceId} places={nearbyPlaces} markerRefs={markerRefs} />
+        <FlyToSelected selectedPlaceId={selectedPlaceId} places={nearbyPlaces} markerRefs={markerRefs} />
 
-      <Marker position={[hotelLat, hotelLng]} icon={hotelIcon}>
-        <Popup>🏨 {hotelName} — starting point</Popup>
-      </Marker>
-
-      {activities.map((activity, i) => (
-        <Marker key={`activity-${i}`} position={[activity.lat, activity.lng]}>
-          <Popup>{activity.time} — {activity.name}</Popup>
+        <Marker position={[hotelLat, hotelLng]} icon={hotelIcon}>
+          <Popup>🏨 {hotelName} — starting point</Popup>
         </Marker>
-      ))}
 
-      {nearbyPlaces.map((place) => (
-        <Marker
-          key={`nearby-${place.id}`}
-          position={[place.lat, place.lng]}
-          icon={place.id === selectedPlaceId ? selectedNearbyIcon : nearbyIcon}
-          ref={(marker) => {
-            markerRefs.current[place.id] = marker;
-          }}
-        >
-          <Popup>{place.name} — {formatDistance(place.distanceMeters)} from hotel</Popup>
-        </Marker>
-      ))}
+        {validActivities.map((activity, i) => (
+          <Marker key={`activity-${i}`} position={[activity.lat, activity.lng]}>
+            <Popup>{activity.time} — {activity.name}</Popup>
+          </Marker>
+        ))}
 
-      <Polyline positions={points} pathOptions={{ color: "blue", weight: 3, opacity: 0.6 }} />
-    </MapContainer>
+        {nearbyPlaces.filter((p) => isValidCoord(p.lat, p.lng)).map((place) => (
+          <Marker
+            key={`nearby-${place.id}`}
+            position={[place.lat, place.lng]}
+            icon={place.id === selectedPlaceId ? selectedNearbyIcon : nearbyIcon}
+            ref={(marker) => {
+              markerRefs.current[place.id] = marker;
+            }}
+          >
+            <Popup>{place.name} — {formatDistance(place.distanceMeters)} from hotel</Popup>
+          </Marker>
+        ))}
+
+        <Polyline positions={points} pathOptions={{ color: "blue", weight: 3, opacity: 0.6 }} />
+      </MapContainer>
+
+      {skippedCount > 0 && (
+        <p className="text-xs text-gray-400 mt-1">
+          {skippedCount} {skippedCount === 1 ? "activity is" : "activities are"} missing location data and
+          {skippedCount === 1 ? " isn't" : " aren't"} shown on the map.
+        </p>
+      )}
+    </div>
   );
 }

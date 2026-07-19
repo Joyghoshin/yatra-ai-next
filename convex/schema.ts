@@ -50,4 +50,26 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_feature", ["feature"])
     .index("by_createdAt", ["createdAt"]),
+
+  // DUMMY flight reservations — simulated PNRs for the Search Flight feature.
+  // These are NOT real Duffel orders: no payment or passenger details are
+  // collected, and no ticket is issued. userId/tripId are optional so a
+  // booking can be linked back to the trip it was made from, but the
+  // reservation still works even if that context isn't passed in.
+  reservations: defineTable({
+    userId: v.optional(v.id("users")),
+    tripId: v.optional(v.id("trips")),
+    pnr: v.string(),
+    offerId: v.string(),
+    carrier: v.string(),
+    origin: v.string(),
+    destination: v.string(),
+    price: v.string(),
+    currency: v.string(),
+    status: v.string(), // "DUMMY_CONFIRMED"
+    createdAt: v.number(),
+  })
+    .index("by_pnr", ["pnr"])
+    .index("by_user", ["userId"])
+    .index("by_trip", ["tripId"]),
 });
