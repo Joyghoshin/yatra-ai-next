@@ -51,7 +51,7 @@ export default function SharedTripPage() {
 
   const [activeDay, setActiveDay] = useState(1);
   const [nearbyPlaces, setNearbyPlaces] = useState<OverpassPlace[]>([]);
-  const [selectedPlaceId, setSelectedPlaceId] = useState<number | null>(null);
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
 
   if (trip === undefined) {
     return <div className="p-8 text-center text-gray-500">Loading trip...</div>;
