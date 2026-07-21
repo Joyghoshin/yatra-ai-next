@@ -10,6 +10,7 @@ import NearbyPlaces from "@/components/NearbyPlaces";
 import TripChatbot from "@/components/TripChatbot";
 import ShareButton from "@/components/ShareButton";
 import FlightSearchPanel from "@/components/FlightSearchPanel";
+import PlaceThumbnail from "@/components/PlaceThumbnail";
 import { OverpassPlace } from "@/lib/overpass";
 import { generateTripPdf } from "@/lib/pdfExport";
 
@@ -54,11 +55,11 @@ export default function ViewTripPage() {
 
   const [activeDay, setActiveDay] = useState(1);
   const [nearbyPlaces, setNearbyPlaces] = useState<OverpassPlace[]>([]);
-  const [selectedPlaceId, setSelectedPlaceId] = useState<number | null>(null);
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
   const [showFlights, setShowFlights] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
 
-  function selectPlace(id: number) {
+  function selectPlace(id: string) {
     setSelectedPlaceId(id);
     mapRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
@@ -153,14 +154,22 @@ export default function ViewTripPage() {
               <h2 className="text-lg font-semibold mb-3">{day.title}</h2>
               <div className="space-y-3">
                 {day.activities.map((a, i) => (
-                  <div key={i} className="border rounded p-3">
-                    <div className="flex justify-between text-sm font-medium">
-                      <span>
-                        {a.time} — {a.name}
-                      </span>
-                      <span className="text-gray-500">{a.estimatedCost}</span>
+                  <div key={i} className="border rounded p-3 flex gap-3 items-start">
+                    <PlaceThumbnail
+                      query={`${a.name} ${trip.destination}`}
+                      alt={a.name}
+                      size={110}
+                      source="wikipedia"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between text-sm font-medium">
+                        <span>
+                          {a.time} — {a.name}
+                        </span>
+                        <span className="text-gray-500 shrink-0 ml-2">{a.estimatedCost}</span>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">{a.description}</p>
                     </div>
-                    <p className="text-sm text-gray-600 mt-1">{a.description}</p>
                   </div>
                 ))}
               </div>

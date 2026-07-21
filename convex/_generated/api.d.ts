@@ -12,6 +12,7 @@ import type * as Reservations from "../Reservations.js";
 import type * as ai from "../ai.js";
 import type * as auth from "../auth.js";
 import type * as flights from "../flights.js";
+import type * as images from "../images.js";
 import type * as llmUsage from "../llmUsage.js";
 import type * as places from "../places.js";
 import type * as trips from "../trips.js";
@@ -27,6 +28,7 @@ declare const fullApi: ApiFromModules<{
   ai: typeof ai;
   auth: typeof auth;
   flights: typeof flights;
+  images: typeof images;
   llmUsage: typeof llmUsage;
   places: typeof places;
   trips: typeof trips;

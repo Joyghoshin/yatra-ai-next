@@ -10,6 +10,7 @@ import {
   RateLimitError,
   cooldownSecondsRemaining,
 } from "@/lib/overpass";
+import PlaceThumbnail from "@/components/PlaceThumbnail";
 
 interface NearbyPlacesProps {
   lat: number;
@@ -19,10 +20,17 @@ interface NearbyPlacesProps {
   onSelectPlace?: (id: string) => void;
 }
 
+// For these categories, a specific business name almost never has a
+// matching Unsplash photo anyway (who's photographed "Northwestern Memorial
+// Hospital" for a stock library?) — so skip straight to a single
+// category-level query instead of wasting a call on the specific name first.
+const LOW_SPECIFICITY_CATEGORIES = new Set(["hospital", "atm", "metro", "ev"]);
+
 export default function NearbyPlaces({ lat, lng, onPlacesChange, selectedPlaceId, onSelectPlace }: NearbyPlacesProps) {
   const nearbyPlacesAction = useAction(api.places.getNearbyPlaces);
 
   const [activeCategory, setActiveCategory] = useState(PLACE_CATEGORIES[0].key);
+  const activeCategoryObj = PLACE_CATEGORIES.find((c) => c.key === activeCategory)!;
   const [places, setPlaces] = useState<OverpassPlace[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -132,12 +140,23 @@ export default function NearbyPlaces({ lat, lng, onPlacesChange, selectedPlaceId
           <li
             key={place.id}
             onClick={() => onSelectPlace?.(place.id)}
-            className={`flex justify-between border rounded p-2 text-sm bg-white text-black cursor-pointer hover:border-black transition ${
+            className={`flex items-start gap-3 border rounded p-2 text-sm bg-white text-black cursor-pointer hover:border-black transition ${
               selectedPlaceId === place.id ? "border-red-500 border-2" : ""
             }`}
           >
-            <span>{place.name}</span>
-            <span className="text-gray-500">{formatDistance(place.distanceMeters)}</span>
+            <PlaceThumbnail
+              query={
+                LOW_SPECIFICITY_CATEGORIES.has(activeCategoryObj.key)
+                  ? activeCategoryObj.label
+                  : `${place.name} ${activeCategoryObj.label}`
+              }
+              fallbackQuery={LOW_SPECIFICITY_CATEGORIES.has(activeCategoryObj.key) ? undefined : activeCategoryObj.label}
+              alt={place.name}
+              size={88}
+              source="unsplash"
+            />
+            <span className="flex-1 min-w-0 truncate">{place.name}</span>
+            <span className="text-gray-500 shrink-0">{formatDistance(place.distanceMeters)}</span>
           </li>
         ))}
       </ul>
