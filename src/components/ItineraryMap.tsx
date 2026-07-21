@@ -43,7 +43,7 @@ interface ItineraryMapProps {
   hotelLng: number;
   hotelName: string;
   nearbyPlaces?: OverpassPlace[];
-  selectedPlaceId?: number | null;
+  selectedPlaceId?: string | null;
 }
 
 // Groq-generated itineraries occasionally omit or malform hotelLat/hotelLng
@@ -65,9 +65,9 @@ function FlyToSelected({
   places,
   markerRefs,
 }: {
-  selectedPlaceId?: number | null;
+  selectedPlaceId?: string | null;
   places: OverpassPlace[];
-  markerRefs: React.MutableRefObject<Record<number, L.Marker | null>>;
+  markerRefs: React.MutableRefObject<Record<string, L.Marker | null>>;
 }) {
   const map = useMap();
   useEffect(() => {
@@ -91,7 +91,7 @@ export default function ItineraryMap({
   nearbyPlaces = [],
   selectedPlaceId = null,
 }: ItineraryMapProps) {
-  const markerRefs = useRef<Record<number, L.Marker | null>>({});
+  const markerRefs = useRef<Record<string, L.Marker | null>>({});
 
   const hasValidHotelCoords = isValidCoord(hotelLat, hotelLng);
 
